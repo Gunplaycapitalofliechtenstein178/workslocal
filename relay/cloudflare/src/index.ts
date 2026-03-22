@@ -2,7 +2,7 @@ import { STALE_THRESHOLD_DAYS } from '@workslocal/shared';
 
 import { authenticateRequest } from './auth.js';
 import { createDb } from './db/index.js';
-import { getActiveDomains, cleanupStaleTunnels } from './db/queries.js';
+import { getActiveDomains, cleanupStaleTunnels, getUserTunnels } from './db/queries.js';
 import { checkRateLimit, RATE_LIMITS } from './rate-limit.js';
 import { handleCreateKey, handleListKeys, handleRevokeKey } from './routes/keys.js';
 import type { Env } from './types.js';
@@ -58,6 +58,15 @@ export default {
         const keyId = url.pathname.split('/').pop() ?? '';
         const auth = await authenticateRequest(request, env);
         response = await handleRevokeKey(keyId, env, auth);
+      } else if (url.pathname === '/api/v1/tunnels' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.authenticated || !auth.userId) {
+          response = error('AUTH_FAILED', auth.error ?? 'Authentication required', 401);
+        } else {
+          const db = createDb(env.DB);
+          const userTunnels = await getUserTunnels(db, auth.userId);
+          response = success({ tunnels: userTunnels });
+        }
       } else {
         response = error('NOT_FOUND', `Route not found: ${url.pathname}`, 404);
       }

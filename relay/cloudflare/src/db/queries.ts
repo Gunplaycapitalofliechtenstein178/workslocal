@@ -211,3 +211,26 @@ export async function updateTunnelActivity(
     .set({ lastActivity: new Date().toISOString() })
     .where(and(eq(tunnels.subdomain, subdomain), eq(tunnels.domain, domain)));
 }
+
+export async function getUserTunnels(
+  db: WorksLocalDb,
+  userId: string,
+): Promise<
+  {
+    subdomain: string;
+    domain: string;
+    lastActivity: string | null;
+    createdAt: string;
+  }[]
+> {
+  return db
+    .select({
+      subdomain: tunnels.subdomain,
+      domain: tunnels.domain,
+      lastActivity: tunnels.lastActivity,
+      createdAt: tunnels.createdAt,
+    })
+    .from(tunnels)
+    .where(eq(tunnels.userId, userId))
+    .all();
+}

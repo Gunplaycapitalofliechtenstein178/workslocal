@@ -2,6 +2,7 @@ import { Command } from 'commander';
 
 import { catchCommand } from './commands/catch.js';
 import { httpCommand } from './commands/http.js';
+import { listCommand } from './commands/list.js';
 import { loginCommand } from './commands/login.js';
 import { logoutCommand } from './commands/logout.js';
 import { statusCommand } from './commands/status.js';
@@ -93,6 +94,9 @@ program
   .option('--server <url>', 'Override relay server URL')
   .option('-v, --verbose', 'Verbose logging')
   .action(catchCommand);
+
+// ─── workslocal list ──────────────────────────────────
+program.command('list').description('List your persistent subdomains').action(listCommand);
 
 // ─── Parse and run ──────────────────────────────────────
 program.parseAsync(process.argv).catch((err: unknown) => {

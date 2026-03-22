@@ -33,6 +33,11 @@ export function Header({
     <header className="flex items-center justify-between px-4 py-2.5 border-b border-(--border) bg-(--muted)/30">
       {/* Left: Logo + tunnel info */}
       <div className="flex items-center gap-4">
+        <img
+          src={theme === 'dark' ? '/logo-light.svg' : '/logo-dark.svg'}
+          alt="WorksLocal"
+          className="h-5 w-5"
+        />
         <h1 className="text-sm font-bold tracking-tight">WorksLocal</h1>
 
         {/* Connection dot */}
