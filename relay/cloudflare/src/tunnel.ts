@@ -49,7 +49,29 @@ interface WirePing {
   timestamp: number;
 }
 
-type WireClientMessage = WireCreateTunnel | WireCloseTunnel | WireHttpResponse | WirePing;
+// ─── WebSocket passthrough wire types ────────────────────
+
+interface WireWsFrame {
+  type: 'ws_frame';
+  request_id: string;
+  data: string;
+  is_binary: boolean;
+}
+
+interface WireWsClose {
+  type: 'ws_close';
+  request_id: string;
+  code: number;
+  reason: string;
+}
+
+type WireClientMessage =
+  | WireCreateTunnel
+  | WireCloseTunnel
+  | WireHttpResponse
+  | WirePing
+  | WireWsFrame
+  | WireWsClose;
 
 // ─── Pending HTTP request tracking ───────────────────────
 
@@ -77,22 +99,23 @@ interface TunnelInfo {
 const log = createWorkerLogger('tunnel-do');
 
 /**
- * TunnelDO - one Durable Object per WebSocket connection.
+ * TunnelDO — one Durable Object per WebSocket connection.
  *
  * Keyed by "conn:{connectionId}". Holds the WebSocket to the CLI client.
  * When the client creates a tunnel, writes to KV so the Worker can
  * route tunnel HTTP traffic back to this DO.
  *
- * Uses the WebSocket Hibernation API - the DO can sleep between messages.
+ * Uses the WebSocket Hibernation API — the DO can sleep between messages.
  * State (tunnel info, connectionId) is persisted to DO storage so it
  * survives hibernation. WebSockets are managed by the runtime and
  * retrieved via this.state.getWebSockets().
  *
- *  additions:
+ * Features:
  * - auth_token support (API key or Clerk JWT)
  * - Persistent subdomains for authenticated users (D1)
  * - 5-subdomain limit for authenticated, 2 for anonymous
  * - 30-min reservation for anonymous, 30-day for authenticated
+ * - WebSocket passthrough (ws_open/ws_frame/ws_close)
  */
 export class TunnelDO implements DurableObject {
   private state: DurableObjectState;
@@ -100,6 +123,9 @@ export class TunnelDO implements DurableObject {
   private connectionId: string | null = null;
   private tunnel: TunnelInfo | null = null;
   private pendingRequests = new Map<string, PendingRequest>();
+
+  // User WebSocket connections (browser ↔ relay, keyed by request_id)
+  private userSockets = new Map<string, WebSocket>();
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
@@ -150,7 +176,7 @@ export class TunnelDO implements DurableObject {
     });
   }
 
-  // ─── WebSocket Handling ──────────────────────────────────
+  // ─── WebSocket Handling (CLI ↔ Relay) ────────────────────
 
   private async handleWebSocketUpgrade(request: Request): Promise<Response> {
     const existingWs = this.getWebSocket();
@@ -212,6 +238,15 @@ export class TunnelDO implements DurableObject {
         ws.send(JSON.stringify({ type: 'pong', timestamp: msg.timestamp }));
         break;
 
+      // WebSocket passthrough: frames from CLI → browser
+      case 'ws_frame':
+        this.handleWsFrame(msg);
+        break;
+
+      case 'ws_close':
+        this.handleWsClose(msg);
+        break;
+
       default:
         this.sendError(
           ws,
@@ -249,7 +284,6 @@ export class TunnelDO implements DurableObject {
     const domain = msg.domain ?? 'workslocal.exposed';
     const tunnelDomains = this.env.TUNNEL_DOMAINS.split(',').map((d) => d.trim());
 
-    // Validate domain
     if (!tunnelDomains.includes(domain)) {
       this.sendError(ws, 'DOMAIN_INVALID', `Invalid domain: ${domain}`);
       return;
@@ -300,23 +334,19 @@ export class TunnelDO implements DurableObject {
         return;
       }
     }
-    // Anonymous limit checked via KV count (best effort)
 
     // ─── Check subdomain availability ────────────────────
     const kvKey = `tunnel:${domain}:${subdomain}`;
     const existing = await this.env.KV.get(kvKey);
 
     if (existing) {
-      // Check if reservation by same user/token
       const canReclaim = await this.canReclaimSubdomain(subdomain, domain, msg, auth);
       if (!canReclaim) {
         this.sendError(ws, 'SUBDOMAIN_TAKEN', `Subdomain "${subdomain}" is already in use`);
         return;
       }
-      // Clean up old reservation
       await this.env.KV.delete(`reserved:${domain}:${subdomain}`);
     } else {
-      // No active tunnel - check for reservation
       const reservationKey = `reserved:${domain}:${subdomain}`;
       const reservedBy = await this.env.KV.get(reservationKey);
       if (reservedBy) {
@@ -327,7 +357,6 @@ export class TunnelDO implements DurableObject {
         }
         await this.env.KV.delete(reservationKey);
       } else if (isAuthenticated && auth.userId) {
-        // Check D1 for persistent ownership by another user
         const db = createDb(this.env.DB);
         const d1Tunnel = await findTunnelBySubdomain(db, subdomain, domain);
         if (d1Tunnel && d1Tunnel.userId !== auth.userId) {
@@ -346,12 +375,10 @@ export class TunnelDO implements DurableObject {
     const isPersistent = isAuthenticated && auth.userId !== null;
 
     if (isPersistent && auth.userId) {
-      // Authenticated: persist in D1 + KV (no TTL on KV)
       const db = createDb(this.env.DB);
       await reserveSubdomain(db, auth.userId, subdomain, domain);
       await this.env.KV.put(kvKey, connectionName);
     } else {
-      // Anonymous: KV only with 2-hour TTL
       await this.env.KV.put(kvKey, connectionName, {
         expirationTtl: Math.floor(ANONYMOUS_TUNNEL_TTL_MS / 1000),
       });
@@ -378,7 +405,6 @@ export class TunnelDO implements DurableObject {
     await this.state.storage.put('tunnel', this.tunnel);
     await this.state.storage.deleteAlarm();
 
-    // ─── Respond ─────────────────────────────────────────
     ws.send(
       JSON.stringify({
         type: 'tunnel_created',
@@ -402,16 +428,12 @@ export class TunnelDO implements DurableObject {
 
   // ─── Subdomain Reclaim Logic ───────────────────────────
 
-  /**
-   * Check if the current user can reclaim an active subdomain.
-   */
   private async canReclaimSubdomain(
     subdomain: string,
     domain: string,
     msg: WireCreateTunnel,
     auth: AuthResult,
   ): Promise<boolean> {
-    // Authenticated user: check D1 ownership
     if (auth.userId) {
       const db = createDb(this.env.DB);
       const d1Tunnel = await findTunnelBySubdomain(db, subdomain, domain);
@@ -420,7 +442,6 @@ export class TunnelDO implements DurableObject {
       }
     }
 
-    // Anonymous user: check reservation token
     const reservationKey = `reserved:${domain}:${subdomain}`;
     const reservedBy = await this.env.KV.get(reservationKey);
     if (reservedBy && reservedBy === msg.anonymous_token) {
@@ -430,19 +451,14 @@ export class TunnelDO implements DurableObject {
     return false;
   }
 
-  /**
-   * Check if the current user can reclaim a reserved (disconnected) subdomain.
-   */
   private canReclaimReservation(
     reservedBy: string,
     msg: WireCreateTunnel,
     auth: AuthResult,
   ): boolean {
-    // Authenticated user reclaiming their own
     if (auth.userId && reservedBy === `user:${auth.userId}`) {
       return true;
     }
-    // Anonymous user reclaiming with same token
     if (msg.anonymous_token && reservedBy === msg.anonymous_token) {
       return true;
     }
@@ -451,13 +467,7 @@ export class TunnelDO implements DurableObject {
 
   // ─── Auth Helper ───────────────────────────────────────
 
-  /**
-   * Authenticate a token from the create_tunnel message.
-   * Supports API keys (wl_k_...) and Clerk JWTs (eyJ...).
-   */
   private async authenticateToken(token: string): Promise<AuthResult> {
-    // Build a fake Request with the Authorization header
-    // so we can reuse the same authenticateRequest function
     const fakeRequest = new Request('https://localhost/', {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -526,6 +536,12 @@ export class TunnelDO implements DurableObject {
   // ─── Tunnel HTTP Traffic (forwarded by Worker) ───────────
 
   private async handleTunnelHttp(request: Request): Promise<Response> {
+    // Check if this is a WebSocket upgrade from a browser/external client
+    const upgradeHeader = request.headers.get('Upgrade');
+    if (upgradeHeader?.toLowerCase() === 'websocket') {
+      return this.handleUserWebSocket(request);
+    }
+
     const ws = this.getWebSocket();
 
     if (!ws) {
@@ -647,9 +663,240 @@ export class TunnelDO implements DurableObject {
     });
   }
 
+  // ─── User WebSocket Passthrough (Browser ↔ Relay ↔ CLI) ──
+
+  /**
+   * Handle a WebSocket upgrade from an external client (browser).
+   * Accept the WS, assign a request_id, and tell the CLI to open
+   * a matching local WS connection via ws_open message.
+   */
+  private handleUserWebSocket(request: Request): Response {
+    const tunnelWs = this.getWebSocket();
+
+    if (!tunnelWs) {
+      return Response.json(
+        {
+          ok: false,
+          error: { code: 'TUNNEL_NOT_CONNECTED', message: 'Tunnel client is not connected' },
+        },
+        { status: 502 },
+      );
+    }
+
+    if (tunnelWs.readyState !== WebSocket.READY_STATE_OPEN) {
+      return Response.json(
+        {
+          ok: false,
+          error: { code: 'TUNNEL_NOT_CONNECTED', message: 'Tunnel client WebSocket is not open' },
+        },
+        { status: 502 },
+      );
+    }
+
+    const requestId = crypto.randomUUID();
+    const url = new URL(request.url);
+
+    // Accept the browser's WebSocket
+    const pair = new WebSocketPair();
+    const [client, server] = [pair[0], pair[1]];
+
+    // Store the server-side socket keyed by request_id
+    this.userSockets.set(requestId, server);
+
+    // Extract headers (skip hop-by-hop and internal)
+    const headers: Record<string, string> = {};
+    for (const [key, value] of request.headers.entries()) {
+      const lower = key.toLowerCase();
+      if (
+        lower === 'host' ||
+        lower === 'connection' ||
+        lower === 'upgrade' ||
+        lower === 'sec-websocket-key' ||
+        lower === 'sec-websocket-version' ||
+        lower === 'sec-websocket-extensions' ||
+        lower.startsWith('x-tunnel-') ||
+        lower.startsWith('cf-')
+      )
+        continue;
+      headers[lower] = value;
+    }
+
+    // Extract query params
+    const query: Record<string, string> = {};
+    for (const [key, value] of url.searchParams.entries()) {
+      query[key] = value;
+    }
+
+    const protocol = request.headers.get('Sec-WebSocket-Protocol') ?? '';
+
+    // Tell CLI to open a local WebSocket
+    tunnelWs.send(
+      JSON.stringify({
+        type: 'ws_open',
+        request_id: requestId,
+        path: url.pathname,
+        headers,
+        query,
+        protocol,
+      }),
+    );
+
+    log.info('User WebSocket opened', {
+      requestId,
+      path: url.pathname,
+      connectionId: this.connectionId ?? 'unknown',
+    });
+
+    // Listen for frames from the browser → relay to CLI
+    server.accept();
+
+    server.addEventListener('message', (event: MessageEvent) => {
+      const data: unknown = event.data;
+      let base64Data: string;
+      let isBinary: boolean;
+
+      if (typeof data === 'string') {
+        // Text frame: base64-encode the UTF-8 string
+        const encoder = new TextEncoder();
+        const bytes = encoder.encode(data);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]!);
+        }
+        base64Data = btoa(binary);
+        isBinary = false;
+      } else if (data instanceof ArrayBuffer) {
+        // Binary frame: base64-encode the raw bytes
+        const bytes = new Uint8Array(data);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]!);
+        }
+        base64Data = btoa(binary);
+        isBinary = true;
+      } else {
+        return;
+      }
+
+      // Forward to CLI via tunnel WS
+      try {
+        tunnelWs.send(
+          JSON.stringify({
+            type: 'ws_frame',
+            request_id: requestId,
+            data: base64Data,
+            is_binary: isBinary,
+          }),
+        );
+      } catch {
+        log.warn('Failed to forward user WS frame to tunnel', { requestId });
+      }
+    });
+
+    server.addEventListener('close', (event: CloseEvent) => {
+      this.userSockets.delete(requestId);
+
+      log.info('User WebSocket closed', {
+        requestId,
+        code: String(event.code),
+      });
+
+      // Tell CLI the browser WS closed
+      try {
+        tunnelWs.send(
+          JSON.stringify({
+            type: 'ws_close',
+            request_id: requestId,
+            code: event.code,
+            reason: event.reason || 'Browser closed connection',
+          }),
+        );
+      } catch {
+        // Tunnel WS may be closed already
+      }
+    });
+
+    server.addEventListener('error', () => {
+      this.userSockets.delete(requestId);
+
+      try {
+        tunnelWs.send(
+          JSON.stringify({
+            type: 'ws_close',
+            request_id: requestId,
+            code: 1011,
+            reason: 'WebSocket error',
+          }),
+        );
+      } catch {
+        // Tunnel WS may be closed already
+      }
+    });
+
+    return new Response(null, {
+      status: 101,
+      webSocket: client,
+    });
+  }
+
+  /**
+   * Forward a WS frame from CLI (localhost) back to the browser.
+   */
+  private handleWsFrame(msg: WireWsFrame): void {
+    const userSocket = this.userSockets.get(msg.request_id);
+    if (!userSocket) return;
+
+    try {
+      if (msg.is_binary) {
+        const binary = atob(msg.data);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        userSocket.send(bytes.buffer);
+      } else {
+        userSocket.send(atob(msg.data));
+      }
+    } catch {
+      log.warn('Failed to send WS frame to browser', { requestId: msg.request_id });
+    }
+  }
+
+  /**
+   * Close a user WebSocket (CLI told us the local WS closed).
+   */
+  private handleWsClose(msg: WireWsClose): void {
+    const userSocket = this.userSockets.get(msg.request_id);
+    if (!userSocket) return;
+
+    try {
+      userSocket.close(msg.code, msg.reason);
+    } catch {
+      // Already closed
+    }
+    this.userSockets.delete(msg.request_id);
+
+    log.info('User WebSocket closed by CLI', {
+      requestId: msg.request_id,
+      code: String(msg.code),
+    });
+  }
+
   // ─── Cleanup ─────────────────────────────────────────────
 
   private async cleanup(): Promise<void> {
+    // Close all user WebSocket connections
+    for (const [requestId, socket] of this.userSockets) {
+      try {
+        socket.close(1001, 'Tunnel disconnected');
+      } catch {
+        // Already closed
+      }
+      log.info('Closing user WebSocket on tunnel disconnect', { requestId });
+    }
+    this.userSockets.clear();
+
+    // Resolve all pending HTTP requests
     for (const [, pending] of this.pendingRequests) {
       clearTimeout(pending.timer);
       pending.resolve(
@@ -678,22 +925,17 @@ export class TunnelDO implements DurableObject {
     const { subdomain, domain, anonymousToken, userId, isPersistent } = this.tunnel;
     const kvKey = `tunnel:${domain}:${subdomain}`;
 
-    // Remove active tunnel from KV
     await this.env.KV.delete(kvKey);
 
     if (isPersistent && userId) {
-      // Authenticated: D1 row stays. Update last activity.
       const db = createDb(this.env.DB);
       await updateTunnelActivity(db, subdomain, domain);
 
-      // Set reservation keyed by userId so same user can reclaim
       const reservationKey = `reserved:${domain}:${subdomain}`;
       await this.env.KV.put(reservationKey, `user:${userId}`, {
-        // 30-day reservation (D1 is source of truth, but KV blocks others)
         expirationTtl: 30 * 24 * 60 * 60,
       });
     } else if (anonymousToken) {
-      // Anonymous: 30-min reservation
       const reservationKey = `reserved:${domain}:${subdomain}`;
       await this.env.KV.put(reservationKey, anonymousToken, {
         expirationTtl: Math.floor(SUBDOMAIN_RESERVATION_MS / 1000),
@@ -710,7 +952,9 @@ export class TunnelDO implements DurableObject {
   // ─── Alarm ───────────────────────────────────────────────
 
   async alarm(): Promise<void> {
-    log.info('Alarm fired - reservation expired', { connectionId: this.connectionId ?? 'unknown' });
+    log.info('Alarm fired — reservation expired', {
+      connectionId: this.connectionId ?? 'unknown',
+    });
 
     if (this.tunnel) {
       await this.removeTunnel('alarm_expired');

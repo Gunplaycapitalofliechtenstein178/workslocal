@@ -3,12 +3,6 @@ dist/
 .tsbuildinfo
 *.tsbuildinfo
 coverage/
-.env
-env/.env.dev
-env/.env.staging
-env/.env.test
-.env.local
-.env.production
 *.dmg
 *.exe
 *.msi

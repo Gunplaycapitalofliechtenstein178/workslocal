@@ -23,5 +23,8 @@ export type {
   ServerMessage,
   WebSocketMessage,
   WebSocketMessageType,
+  WsOpenMessage,
+  WsFrameMessage,
+  WsCloseMessage,
 } from './ws.js';
 export type { ApiResponse, ApiSuccessResponse, ApiErrorResponse } from './api.js';

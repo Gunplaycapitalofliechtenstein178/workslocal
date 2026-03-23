@@ -79,6 +79,8 @@ export class TunnelClient {
   private readonly localProxy: LocalProxy;
   readonly requestStore: RequestStore;
 
+  private readonly localWebSockets = new Map<string, WebSocket>();
+
   // Event system
   private readonly listeners: EventMap = {
     connected: new Set(),
@@ -218,6 +220,16 @@ export class TunnelClient {
 
     this.stopHeartbeat();
     this.clearReconnectTimer();
+
+    // Close all local WebSocket connections (WS passthrough)
+    for (const [, localWs] of this.localWebSockets) {
+      try {
+        localWs.close(1001, 'Tunnel disconnecting');
+      } catch {
+        // Already closed
+      }
+    }
+    this.localWebSockets.clear();
 
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       for (const tunnelId of this.tunnels.keys()) {
@@ -376,7 +388,40 @@ export class TunnelClient {
       case 'domains_updated':
         this.log.info('Domains updated', { domains: msg.domains });
         break;
+      case 'ws_open':
+        this.handleWsOpen(
+          msg as unknown as {
+            type: 'ws_open';
+            request_id: string;
+            path: string;
+            headers: Record<string, string>;
+            query: Record<string, string>;
+            protocol: string;
+          },
+        );
+        break;
 
+      case 'ws_frame':
+        this.handleWsFrameFromServer(
+          msg as unknown as {
+            type: 'ws_frame';
+            request_id: string;
+            data: string;
+            is_binary: boolean;
+          },
+        );
+        break;
+
+      case 'ws_close':
+        this.handleWsCloseFromServer(
+          msg as unknown as {
+            type: 'ws_close';
+            request_id: string;
+            code: number;
+            reason: string;
+          },
+        );
+        break;
       default:
         this.log.warn('Unknown message type from server', {
           type: (msg as { type: string }).type,
@@ -632,5 +677,152 @@ export class TunnelClient {
         state: String(this.ws?.readyState ?? 'null'),
       });
     }
+  }
+
+  /**
+   * Server tells us a browser opened a WebSocket to the tunnel URL.
+   * Open a matching WebSocket to localhost.
+   */
+  private handleWsOpen(msg: {
+    request_id: string;
+    path: string;
+    headers: Record<string, string>;
+    query: Record<string, string>;
+    protocol: string;
+  }): void {
+    // Find the local port
+    let localPort = 0;
+    for (const [, port] of this.portMap.entries()) {
+      localPort = port;
+      break;
+    }
+
+    if (localPort === 0) {
+      this.log.warn('No tunnel for WS connection', { requestId: msg.request_id });
+      this.send({
+        type: 'ws_close',
+        request_id: msg.request_id,
+        code: 1011,
+        reason: 'No active tunnel',
+      } as unknown as ClientMessage);
+      return;
+    }
+
+    // Build local WebSocket URL
+    const queryString = Object.entries(msg.query)
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&');
+    const wsUrl = queryString
+      ? `ws://localhost:${String(localPort)}${msg.path}?${queryString}`
+      : `ws://localhost:${String(localPort)}${msg.path}`;
+
+    const wsOptions: WebSocket.ClientOptions = {
+      headers: { ...msg.headers },
+    };
+
+    if (msg.protocol) {
+      wsOptions.protocol = msg.protocol;
+    }
+
+    this.log.info('Opening local WebSocket', {
+      requestId: msg.request_id,
+      url: wsUrl,
+    });
+
+    const localWs = new WebSocket(wsUrl, wsOptions);
+    this.localWebSockets.set(msg.request_id, localWs);
+
+    localWs.on('open', () => {
+      this.log.debug('Local WebSocket connected', { requestId: msg.request_id });
+    });
+
+    localWs.on('message', (data: WebSocket.Data, isBinary: boolean) => {
+      // Forward frame from localhost back to the relay → browser
+      let base64Data: string;
+
+      if (typeof data === 'string') {
+        base64Data = Buffer.from(data, 'utf-8').toString('base64');
+      } else if (Buffer.isBuffer(data)) {
+        base64Data = data.toString('base64');
+      } else if (Array.isArray(data)) {
+        base64Data = Buffer.concat(data).toString('base64');
+      } else {
+        base64Data = Buffer.from(data).toString('base64');
+      }
+
+      this.send({
+        type: 'ws_frame',
+        request_id: msg.request_id,
+        data: base64Data,
+        is_binary: isBinary,
+      } as unknown as ClientMessage);
+    });
+
+    localWs.on('close', (code: number, reason: Buffer) => {
+      this.localWebSockets.delete(msg.request_id);
+      this.log.debug('Local WebSocket closed', {
+        requestId: msg.request_id,
+        code: String(code),
+      });
+
+      this.send({
+        type: 'ws_close',
+        request_id: msg.request_id,
+        code,
+        reason: reason.toString('utf-8') || 'Local server closed connection',
+      } as unknown as ClientMessage);
+    });
+
+    localWs.on('error', (err: Error) => {
+      this.localWebSockets.delete(msg.request_id);
+      this.log.warn('Local WebSocket error', {
+        requestId: msg.request_id,
+        err: err.message,
+      });
+
+      this.send({
+        type: 'ws_close',
+        request_id: msg.request_id,
+        code: 1011,
+        reason: `Local WebSocket error: ${err.message}`,
+      } as unknown as ClientMessage);
+    });
+  }
+
+  /**
+   * Server sends a WS frame from the browser.
+   * Forward it to the local WebSocket.
+   */
+  private handleWsFrameFromServer(msg: {
+    request_id: string;
+    data: string;
+    is_binary: boolean;
+  }): void {
+    const localWs = this.localWebSockets.get(msg.request_id);
+    if (!localWs || localWs.readyState !== WebSocket.OPEN) return;
+
+    const decoded = Buffer.from(msg.data, 'base64');
+
+    if (msg.is_binary) {
+      localWs.send(decoded);
+    } else {
+      localWs.send(decoded.toString('utf-8'));
+    }
+  }
+
+  /**
+   * Server tells us the browser closed the WS.
+   * Close the corresponding local WebSocket.
+   */
+  private handleWsCloseFromServer(msg: { request_id: string; code: number; reason: string }): void {
+    const localWs = this.localWebSockets.get(msg.request_id);
+    if (!localWs) return;
+
+    try {
+      localWs.close(msg.code, msg.reason);
+    } catch {
+      // Already closed
+    }
+    this.localWebSockets.delete(msg.request_id);
   }
 }
