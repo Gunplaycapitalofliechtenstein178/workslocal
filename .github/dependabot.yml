@@ -6,9 +6,22 @@ updates:
       interval: weekly
     groups:
       typescript:
-        patterns: ['typescript', '@typescript-eslint/*']
-      prisma:
-        patterns: ['prisma', '@prisma/*']
+        patterns: ['typescript', '@typescript-eslint/*', 'typescript-eslint']
+      cloudflare:
+        patterns: ['wrangler', '@cloudflare/*']
+      drizzle:
+        patterns: ['drizzle-orm', 'drizzle-kit']
+      eslint:
+        patterns: ['eslint', 'eslint-*', '@eslint/*']
+      react:
+        patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
+      vite:
+        patterns: ['vite', '@vitejs/*', '@tailwindcss/vite']
+      testing:
+        patterns: ['vitest']
+    ignore:
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
