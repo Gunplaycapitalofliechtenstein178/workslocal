@@ -1,0 +1,6 @@
+$kind: http-request
+description: Get the authenticated user's account info (id and email).
+url: '{{base_url}}/api/v1/account'
+method: GET
+examples: ./.resources/Get Account.resources/examples
+order: 1000

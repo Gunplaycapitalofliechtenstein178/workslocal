@@ -1,0 +1,6 @@
+$kind: http-request
+description: Readiness check that tests D1 database and KV store connectivity.
+url: '{{base_url}}/health/ready'
+method: GET
+examples: ./.resources/Readiness Check.resources/examples
+order: 2000

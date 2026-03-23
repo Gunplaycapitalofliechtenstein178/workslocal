@@ -1,0 +1,37 @@
+$kind: http-request
+description: >-
+  Create a new API key. The raw key is returned **once** in the response and is
+  never stored.
+
+
+  Max 5 API keys per user. Key name is required (max 100 chars).
+
+
+  The `key_id` is automatically saved to the environment for use in the Delete
+  request.
+url: '{{base_url}}/api/v1/keys'
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "my-api-key"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      if (pm.response.code === 201) {
+          var json = pm.response.json();
+          if (json.ok && json.data && json.data.id) {
+              pm.environment.set('key_id', json.data.id);
+              console.log('Saved key_id: ' + json.data.id);
+          }
+          if (json.ok && json.data && json.data.key) {
+              console.log('API Key (save this, shown once): ' + json.data.key);
+          }
+      }
+    language: text/javascript
+examples: ./.resources/Create API Key.resources/examples
+order: 1000

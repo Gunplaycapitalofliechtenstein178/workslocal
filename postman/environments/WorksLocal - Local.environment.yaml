@@ -1,0 +1,13 @@
+name: WorksLocal - Local
+values:
+  - key: base_url
+    value: 'http://localhost:8787'
+    enabled: true
+  - key: auth_token
+    value: ''
+    enabled: true
+    description: Clerk JWT or API key (wl_k_...). Get a JWT via /auth/login or create an API key via POST /api/v1/keys.
+  - key: key_id
+    value: ''
+    enabled: true
+    description: Auto-populated by the Create API Key request. Used by Revoke API Key.

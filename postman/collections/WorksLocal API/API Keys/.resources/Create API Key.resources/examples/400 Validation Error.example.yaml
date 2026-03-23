@@ -1,0 +1,20 @@
+$kind: http-example
+request:
+  url: ''
+  method: GET
+response:
+  statusCode: 400
+  statusText: Bad Request
+  headers:
+    Content-Type: application/json
+  body:
+    type: text
+    content: |-
+      {
+        "ok": false,
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "Key name required (max 100 chars)"
+        }
+      }
+order: 3000

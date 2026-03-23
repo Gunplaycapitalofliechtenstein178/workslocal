@@ -1,0 +1,6 @@
+$kind: http-request
+description: List all active tunnels for the authenticated user.
+url: '{{base_url}}/api/v1/tunnels'
+method: GET
+examples: ./.resources/List Tunnels.resources/examples
+order: 1000

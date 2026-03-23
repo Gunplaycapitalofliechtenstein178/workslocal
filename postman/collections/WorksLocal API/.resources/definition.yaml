@@ -1,0 +1,26 @@
+$kind: collection
+description: >-
+  WorksLocal tunneling relay API.
+
+
+  Authentication: Set `auth_token` in your environment to a Clerk JWT or API key
+  (wl_k_...).
+
+
+  Response format:
+
+  - Success: `{ "ok": true, "data": { ... } }`
+
+  - Error: `{ "ok": false, "error": { "code": "...", "message": "..." } }`
+scripts:
+  - type: http:afterResponse
+    code: |-
+      pm.test('Response is JSON', function () {
+          pm.response.to.have.header('Content-Type', /application\/json/);
+      });
+
+      pm.test('Response has ok field', function () {
+          var json = pm.response.json();
+          pm.expect(json).to.have.property('ok');
+      });
+    language: text/javascript

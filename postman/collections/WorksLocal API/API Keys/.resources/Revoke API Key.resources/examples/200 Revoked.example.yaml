@@ -1,0 +1,19 @@
+$kind: http-example
+request:
+  url: ''
+  method: GET
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: text
+    content: |-
+      {
+        "ok": true,
+        "data": {
+          "revoked": true
+        }
+      }
+order: 1000

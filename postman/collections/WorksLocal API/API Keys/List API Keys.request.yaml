@@ -1,0 +1,7 @@
+$kind: http-request
+description: List all API keys for the authenticated user. Returns key metadata
+  (id, prefix, name, timestamps) but never the raw key.
+url: '{{base_url}}/api/v1/keys'
+method: GET
+examples: ./.resources/List API Keys.resources/examples
+order: 2000

@@ -1,0 +1,7 @@
+$kind: http-request
+description: Revoke (delete) an API key by ID. Uses the `key_id` environment
+  variable, which is auto-populated by the Create API Key request.
+url: '{{base_url}}/api/v1/keys/{{key_id}}'
+method: DELETE
+examples: ./.resources/Revoke API Key.resources/examples
+order: 3000

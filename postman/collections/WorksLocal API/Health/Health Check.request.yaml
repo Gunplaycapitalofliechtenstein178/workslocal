@@ -1,0 +1,6 @@
+$kind: http-request
+description: 'Basic health check. Always returns `{ ok: true, data: { status: "ok" } }`.'
+url: '{{base_url}}/health'
+method: GET
+examples: ./.resources/Health Check.resources/examples
+order: 1000

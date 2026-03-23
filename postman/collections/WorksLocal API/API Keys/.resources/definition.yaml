@@ -1,0 +1,14 @@
+$kind: collection
+description: >-
+  API key management endpoints. Requires authentication.
+
+
+  API keys use the format `wl_k_<uuid>` and can be used as Bearer tokens for
+  programmatic access.
+auth:
+  - id: 26377719-7dba-4ef2-aee5-450d2202c8f3
+    type: bearer
+    name: bearer auth
+    credentials:
+      token: '{{auth_token}}'
+order: 4000

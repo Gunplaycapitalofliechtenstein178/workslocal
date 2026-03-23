@@ -1,0 +1,27 @@
+$kind: http-example
+request:
+  url: ''
+  method: GET
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: text
+    content: |-
+      {
+        "ok": true,
+        "data": {
+          "keys": [
+            {
+              "id": "abc123",
+              "prefix": "wl_k_123456",
+              "name": "my-api-key",
+              "last_used_at": null,
+              "created_at": "2026-03-23T00:00:00.000Z"
+            }
+          ]
+        }
+      }
+order: 1000

@@ -1,0 +1,20 @@
+$kind: http-example
+request:
+  url: ''
+  method: GET
+response:
+  statusCode: 404
+  statusText: Not Found
+  headers:
+    Content-Type: application/json
+  body:
+    type: text
+    content: |-
+      {
+        "ok": false,
+        "error": {
+          "code": "NOT_FOUND",
+          "message": "API key not found"
+        }
+      }
+order: 2000

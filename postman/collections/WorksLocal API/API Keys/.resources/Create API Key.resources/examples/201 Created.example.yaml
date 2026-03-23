@@ -1,0 +1,23 @@
+$kind: http-example
+request:
+  url: ''
+  method: GET
+response:
+  statusCode: 201
+  statusText: Created
+  headers:
+    Content-Type: application/json
+  body:
+    type: text
+    content: |-
+      {
+        "ok": true,
+        "data": {
+          "id": "abc123",
+          "key": "wl_k_1234567890abcdef1234567890abcdef",
+          "prefix": "wl_k_123456",
+          "name": "my-api-key",
+          "created_at": "2026-03-23T00:00:00.000Z"
+        }
+      }
+order: 1000

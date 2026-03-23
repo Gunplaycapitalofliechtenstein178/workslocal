@@ -1,0 +1,22 @@
+$kind: http-example
+request:
+  url: ''
+  method: GET
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    Content-Type: application/json
+  body:
+    type: text
+    content: |-
+      {
+        "ok": true,
+        "data": {
+          "status": "ready",
+          "db": "ok",
+          "kv": "ok",
+          "domains": ["workslocal.exposed"]
+        }
+      }
+order: 1000

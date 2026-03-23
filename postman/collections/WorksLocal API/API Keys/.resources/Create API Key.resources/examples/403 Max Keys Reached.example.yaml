@@ -1,0 +1,20 @@
+$kind: http-example
+request:
+  url: ''
+  method: GET
+response:
+  statusCode: 403
+  statusText: Forbidden
+  headers:
+    Content-Type: application/json
+  body:
+    type: text
+    content: |-
+      {
+        "ok": false,
+        "error": {
+          "code": "MAX_TUNNELS_REACHED",
+          "message": "Maximum 5 API keys allowed"
+        }
+      }
+order: 4000

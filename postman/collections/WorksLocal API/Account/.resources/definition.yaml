@@ -1,0 +1,9 @@
+$kind: collection
+description: User account endpoints. Requires authentication.
+auth:
+  - id: 973c03ca-9908-495e-b0a4-79538b6696c7
+    type: bearer
+    name: bearer auth
+    credentials:
+      token: '{{auth_token}}'
+order: 3000

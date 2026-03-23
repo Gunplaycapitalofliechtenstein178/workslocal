@@ -1,0 +1,9 @@
+$kind: collection
+description: Tunnel management endpoints. Requires authentication.
+auth:
+  - id: 76bc65ef-65c8-406a-8cbb-3adad3e9d3c9
+    type: bearer
+    name: bearer auth
+    credentials:
+      token: '{{auth_token}}'
+order: 5000

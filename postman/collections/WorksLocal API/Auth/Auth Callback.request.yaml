@@ -1,0 +1,6 @@
+$kind: http-request
+description: Clerk OAuth callback handler. Processes the auth response and
+  returns a page with the JWT token.
+url: '{{base_url}}/auth/callback'
+method: GET
+order: 2000

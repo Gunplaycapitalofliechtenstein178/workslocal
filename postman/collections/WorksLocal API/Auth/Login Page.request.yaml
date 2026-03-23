@@ -1,0 +1,6 @@
+$kind: http-request
+description: Returns the Clerk-hosted login page (HTML). After login, redirects
+  to `/auth/callback`.
+url: '{{base_url}}/auth/login'
+method: GET
+order: 1000
