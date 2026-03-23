@@ -1,5 +1,5 @@
 import { JSX, useState } from 'react';
-import { Panel, Group, Separator } from 'react-resizable-panels';
+import { Group, Panel, Separator } from 'react-resizable-panels';
 
 import { EmptyState } from './components/EmptyState';
 import { Filters } from './components/Filters';

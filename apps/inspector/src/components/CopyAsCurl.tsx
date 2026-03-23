@@ -1,4 +1,4 @@
-import { Copy, Check } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 import { JSX, useState } from 'react';
 
 import { generateCurl } from '../lib/curl';

@@ -2,10 +2,13 @@
   "name": "@workslocal/shared",
   "version": "0.1.0",
   "description": "WorksLocal shared types, schemas, constants, and utilities",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/workslocal/workslocal",
+    "directory": "packages/shared"
+  },
+  "license": "MIT",
   "type": "module",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -13,25 +16,22 @@
       "require": "./dist/index.cjs"
     }
   },
-  "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit -p tsconfig.check.json",
-    "lint": "eslint src/",
-    "test": "vitest run",
-    "test:watch": "vitest watch",
-    "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "zod": "^3.23.0"
-  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist"
   ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/workslocal/workslocal",
-    "directory": "packages/shared"
+  "scripts": {
+    "build": "tsup",
+    "clean": "rm -rf dist",
+    "dev": "tsup --watch",
+    "lint": "eslint src/",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit -p tsconfig.check.json"
   },
-  "license": "MIT"
+  "dependencies": {
+    "zod": "^3.23.0"
+  }
 }

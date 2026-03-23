@@ -1,8 +1,8 @@
 import {
-  LocalProxyResponse,
-  TunnelClient,
   createCatchProxy,
   createInspectorServer,
+  LocalProxyResponse,
+  TunnelClient,
 } from '@workslocal/client';
 import ora from 'ora';
 

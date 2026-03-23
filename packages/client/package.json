@@ -2,10 +2,13 @@
   "name": "@workslocal/client",
   "version": "0.1.0",
   "description": "WorksLocal tunnel client — WebSocket, local proxy, request capture",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/workslocal/workslocal",
+    "directory": "packages/client"
+  },
+  "license": "MIT",
   "type": "module",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -13,13 +16,19 @@
       "require": "./dist/index.cjs"
     }
   },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
+    "clean": "rm -rf dist",
     "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
     "test": "vitest run",
-    "clean": "rm -rf dist"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@workslocal/shared": "workspace:*",
@@ -27,14 +36,5 @@
   },
   "devDependencies": {
     "@types/ws": "^8.18.1"
-  },
-  "files": [
-    "dist"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/workslocal/workslocal",
-    "directory": "packages/client"
-  },
-  "license": "MIT"
+  }
 }

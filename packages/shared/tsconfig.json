@@ -2,9 +2,9 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
     "lib": ["ES2022"]
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "__tests__"],
   "exclude": ["node_modules", "dist"]
 }

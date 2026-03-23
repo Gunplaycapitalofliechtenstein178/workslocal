@@ -2,11 +2,11 @@ import { API_KEY_PREFIX, MAX_API_KEYS_PER_USER } from '@workslocal/shared';
 
 import { authenticateRequest } from '../auth.js';
 import { createDb } from '../db/index.js';
-import { createApiKey, listApiKeys, revokeApiKey, getUserApiKeyCount } from '../db/queries.js';
+import { createApiKey, getUserApiKeyCount, listApiKeys, revokeApiKey } from '../db/queries.js';
 import type { RouteParams } from '../router.js';
 import type { Env } from '../types.js';
 import { generateId } from '../utils/id.js';
-import { success, error } from '../utils/response.js';
+import { error, success } from '../utils/response.js';
 
 export async function handleCreateKey(request: Request, env: Env): Promise<Response> {
   const auth = await authenticateRequest(request, env);

@@ -1,4 +1,4 @@
-import type { WLLogger, HttpRequestMessage } from '@workslocal/shared';
+import type { HttpRequestMessage, WLLogger } from '@workslocal/shared';
 
 import type { LocalProxyResponse } from './local-proxy.js';
 

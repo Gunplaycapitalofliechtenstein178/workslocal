@@ -5,12 +5,12 @@
   "description": "WorksLocal web inspector - request/response viewer",
   "type": "module",
   "scripts": {
-    "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "dev": "vite",
     "lint": "eslint src/",
-    "clean": "rm -rf dist"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

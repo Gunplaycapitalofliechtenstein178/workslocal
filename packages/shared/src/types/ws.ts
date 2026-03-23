@@ -1,3 +1,7 @@
+// ─── WebSocket Passthrough (re-exported from ws-passthrough.ts) ──
+
+import type { WsCloseMessage, WsFrameMessage, WsOpenMessage } from './ws-passthrough.js';
+
 // --- Client → Server ---
 
 export interface CreateTunnelMessage {
@@ -70,10 +74,6 @@ export interface DomainsUpdatedMessage {
   readonly type: 'domains_updated';
   readonly domains: readonly string[];
 }
-
-// ─── WebSocket Passthrough (re-exported from ws-passthrough.ts) ──
-
-import type { WsCloseMessage, WsFrameMessage, WsOpenMessage } from './ws-passthrough.js';
 
 export type { WsCloseMessage, WsFrameMessage, WsOpenMessage };
 

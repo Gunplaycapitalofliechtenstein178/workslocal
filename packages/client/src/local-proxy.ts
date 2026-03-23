@@ -1,7 +1,6 @@
 import http from 'node:http';
 
-import type { WLLogger } from '@workslocal/shared';
-import type { HttpRequestMessage } from '@workslocal/shared';
+import type { HttpRequestMessage, WLLogger } from '@workslocal/shared';
 
 export interface LocalProxyResponse {
   statusCode: number;

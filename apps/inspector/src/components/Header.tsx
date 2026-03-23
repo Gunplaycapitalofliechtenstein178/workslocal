@@ -1,4 +1,4 @@
-import { Moon, Sun, Trash2, Copy, Check } from 'lucide-react';
+import { Check, Copy, Moon, Sun, Trash2 } from 'lucide-react';
 import { JSX, useState } from 'react';
 
 import type { TunnelInfo } from '../types';

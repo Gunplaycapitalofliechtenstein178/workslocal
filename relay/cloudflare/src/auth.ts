@@ -1,7 +1,7 @@
-import { AUTH_CACHE_TTL_SECONDS, API_KEY_PREFIX } from '@workslocal/shared';
+import { API_KEY_PREFIX, AUTH_CACHE_TTL_SECONDS } from '@workslocal/shared';
 
 import { createDb } from './db/index.js';
-import { findApiKeyByHash, findUserById, createUserIfNotExists } from './db/queries.js';
+import { createUserIfNotExists, findApiKeyByHash, findUserById } from './db/queries.js';
 import type { Env } from './types.js';
 
 export interface AuthResult {

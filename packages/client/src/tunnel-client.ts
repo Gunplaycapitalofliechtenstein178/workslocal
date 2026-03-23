@@ -1,8 +1,8 @@
 import {
   silentLogger,
-  type WLLogger,
-  type HttpRequestMessage,
   type ClientMessage,
+  type HttpRequestMessage,
+  type WLLogger,
 } from '@workslocal/shared';
 import WebSocket from 'ws';
 

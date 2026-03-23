@@ -1,8 +1,8 @@
-import { eq, and, lt, isNull } from 'drizzle-orm';
+import { and, eq, isNull, lt } from 'drizzle-orm';
 
 import { generateId } from '../utils/id.js';
 
-import { tunnels, tunnelDomains, users, apiKeys } from './schema.js';
+import { apiKeys, tunnelDomains, tunnels, users } from './schema.js';
 
 import type { WorksLocalDb } from './index.js';
 

@@ -1,5 +1,4 @@
-import { cpSync, existsSync } from 'node:fs';
-import { readFileSync } from 'node:fs';
+import { cpSync, existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { defineConfig } from 'tsup';

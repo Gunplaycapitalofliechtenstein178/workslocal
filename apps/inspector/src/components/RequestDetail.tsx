@@ -1,8 +1,8 @@
-import { Copy, Check } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 import { JSX, useState } from 'react';
 
 import { generateCurl } from '../lib/curl';
-import { decodeBody, isJsonContentType, tryFormatJson, formatBytes } from '../lib/format';
+import { decodeBody, formatBytes, isJsonContentType, tryFormatJson } from '../lib/format';
 import type { CapturedRequest } from '../types';
 
 interface RequestDetailProps {

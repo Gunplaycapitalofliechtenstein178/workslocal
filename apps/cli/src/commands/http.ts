@@ -1,5 +1,5 @@
-import { TunnelClient, createInspectorServer } from '@workslocal/client';
-import type { CapturedRequest, TunnelInfo, InspectorServer } from '@workslocal/client';
+import { createInspectorServer, TunnelClient } from '@workslocal/client';
+import type { CapturedRequest, InspectorServer, TunnelInfo } from '@workslocal/client';
 import ora from 'ora';
 
 import {

@@ -62,19 +62,26 @@ Socket.io, ws, WebRTC signaling — all work through the tunnel.
 
 | Feature | WorksLocal | ngrok (free) | Cloudflare Tunnel |
 |---------|-----------|-------------|-------------------|
-| Price | Free forever | Free (1GB/month, 1 endpoint) | Free |
-| Custom subdomain | ✅ Free, you choose | ❌ Auto-assigned only | N/A (uses your domain) |
-| Persistent URL | ✅ Survives restart | ✅ 1 free dev domain | ✅ |
-| Catch mode | ✅ | ❌ | ❌ |
-| Web inspector | ✅ Dark/light, filters, cURL | ✅ localhost:4040 + replay | ❌ |
-| Open source | ✅ MIT | ❌ Proprietary | ❌ (client is open, infra isn't) |
-| No account required | ✅ First use anonymous | ❌ Account required | ❌ Account required |
+| Price | Free forever | Free (limited) | Free |
+| Bandwidth | No cap | 1 GB/month | No cap (fair-use TOS) |
+| Request limit | Rate-limited per tunnel | 20K/month | No published limit |
+| Custom subdomain | ✅ You choose, free | ❌ Auto-assigned only | Requires your own domain |
+| Persistent URL | ✅ Survives restart | ✅ 1 dev domain | ✅ Named tunnels |
+| Catch mode | ✅ Webhook capture, no server needed | ❌ | ❌ |
+| Web inspector | ✅ localhost:4040 | ✅ localhost:4040 + replay | ❌ Metrics/logs only |
+| Request replay | Planned | ✅ With modifications | ❌ |
+| Open source | ✅ MIT | ❌ Proprietary | Client only (Apache 2.0) |
+| No account required | ✅ Anonymous first use | ❌ Required since Dec 2023 | ❌ (except quick tunnels) |
 | WebSocket passthrough | ✅ | ✅ | ✅ |
-| Request replay | 🔜 Planned | ✅ | ❌ |
-| Self-hostable | 🔜 Planned | ❌ | ✅ You run `cloudflared` |
-| Setup complexity | `npm install -g` | Download binary + auth | Install cloudflared + configure |
-| Interstitial warning | ❌ None | ✅ On free HTML traffic | ❌ None |
-| Bandwidth limit | Unlimited | 1 GB/month | Unlimited |
+| Interstitial warning | ❌ None | ✅ On all browser traffic | ❌ None |
+| Self-hostable | Planned | ❌ | Client local, infra is Cloudflare's |
+| Setup | `npm install -g workslocal` | Download binary + account | Install cloudflared + domain + config |
+| Endpoints | 5 persistent (auth) | 3 concurrent | 1,000 tunnels |
+| DDoS protection | Via Cloudflare edge | ❌ Free tier | ✅ Full Cloudflare |
+
+> **Honest note:** ngrok's inspector has request replay with modifications — we don't (yet).
+> Cloudflare Tunnel offers quick tunnels (`cloudflared tunnel --url`) with no account needed,
+> but URLs are random and ephemeral with a 200 concurrent request limit.
 
 ## Commands
 

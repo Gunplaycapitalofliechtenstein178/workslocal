@@ -3,31 +3,54 @@
   "version": "0.0.1",
   "private": true,
   "description": "Free, open-source tunneling solution - expose localhost to the internet via secure HTTPS tunnels",
-  "packageManager": "pnpm@9.15.0",
-  "engines": {
-    "node": ">=20.0.0",
-    "pnpm": ">=9.0.0"
+  "keywords": [
+    "tunnel",
+    "ngrok",
+    "localhost",
+    "https",
+    "websocket",
+    "proxy",
+    "developer-tools"
+  ],
+  "homepage": "https://workslocal.dev",
+  "bugs": {
+    "url": "https://github.com/workslocal/workslocal/issues"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/workslocal/workslocal.git"
+  },
+  "license": "MIT",
+  "author": "WorksLocal Contributors",
   "scripts": {
     "build": "turbo run build",
-    "typecheck": "turbo run typecheck",
-    "lint": "turbo run lint",
-    "clean": "turbo run clean",
-    "format": "prettier --write \"**/*.{ts,tsx,json,md,yml,yaml}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,json,md,yml,yaml}\"",
     "changeset": "changeset",
-    "version-packages": "changeset version",
-    "release": "turbo run build && changeset publish",
-    "prepare": "husky",
-    "dev:relay": "pnpm --filter @workslocal/relay run dev",
-    "dev:cli": "WORKSLOCAL_SERVER_URL=ws://localhost:8787/ws pnpm --filter workslocal run dev",
-    "deploy": "pnpm --filter @workslocal/relay run deploy",
+    "clean": "turbo run clean",
     "db:generate": "pnpm --filter @workslocal/relay run db:generate",
     "db:migrate:local": "pnpm --filter @workslocal/relay run db:migrate:local",
     "db:migrate:remote": "pnpm --filter @workslocal/relay run db:migrate:remote",
     "db:studio": "pnpm --filter @workslocal/relay run db:studio",
+    "deploy": "pnpm --filter @workslocal/relay run deploy",
+    "dev:cli": "WORKSLOCAL_SERVER_URL=ws://localhost:8787/ws pnpm --filter workslocal run dev",
+    "dev:inspector": "pnpm --filter @workslocal/inspector run dev",
+    "dev:relay": "pnpm --filter @workslocal/relay run dev",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md,yml,yaml}\"",
+    "lint": "turbo run lint",
+    "prepare": "husky",
     "relay:tail": "pnpm --filter @workslocal/relay exec wrangler tail",
-    "dev:inspector": "pnpm --filter @workslocal/inspector run dev"
+    "release": "turbo run build && changeset publish",
+    "typecheck": "turbo run typecheck",
+    "version-packages": "changeset version"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
     "@changesets/cli": "^2.30.0",
@@ -39,6 +62,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^15.5.2",
     "prettier": "^3.8.1",
+    "prettier-plugin-packagejson": "^3.0.2",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "turbo": "^2.8.14",
@@ -46,34 +70,11 @@
     "typescript-eslint": "^8.56.1",
     "vitest": "^2.1.9"
   },
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md,yml,yaml}": [
-      "prettier --write"
-    ]
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/workslocal/workslocal.git"
-  },
-  "license": "MIT",
-  "author": "WorksLocal Contributors",
-  "homepage": "https://workslocal.dev",
-  "bugs": {
-    "url": "https://github.com/workslocal/workslocal/issues"
-  },
-  "keywords": [
-    "tunnel",
-    "ngrok",
-    "localhost",
-    "https",
-    "websocket",
-    "proxy",
-    "developer-tools"
-  ],
   "pnpm": {
     "overrides": {
       "esbuild@<=0.24.2": ">=0.25.0"

@@ -2,35 +2,6 @@
   "name": "workslocal",
   "version": "0.1.0",
   "description": "Expose localhost to the internet - free, open-source tunneling tool",
-  "type": "module",
-  "bin": {
-    "workslocal": "./dist/index.js"
-  },
-  "main": "./dist/index.js",
-  "author": "Chandan <083.chandan@gmail.com>",
-  "scripts": {
-    "build": "tsup",
-    "dev": "tsx src/index.ts",
-    "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint src/",
-    "test": "vitest run",
-    "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "chalk": "^5.6.2",
-    "commander": "^14.0.3",
-    "ora": "^9.3.0",
-    "ws": "^8.19.0"
-  },
-  "devDependencies": {
-    "@workslocal/client": "workspace:*",
-    "@workslocal/shared": "workspace:*",
-    "@types/node": "^20.x"
-  },
-  "files": [
-    "dist"
-  ],
   "keywords": [
     "tunnel",
     "localhost",
@@ -42,14 +13,43 @@
     "developer-tools",
     "workslocal"
   ],
-  "license": "MIT",
+  "homepage": "https://workslocal.dev",
+  "bugs": {
+    "url": "https://github.com/workslocal/workslocal/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/workslocal/workslocal.git"
   },
-  "homepage": "https://workslocal.dev",
-  "bugs": {
-    "url": "https://github.com/workslocal/workslocal/issues"
+  "license": "MIT",
+  "author": "Chandan <083.chandan@gmail.com>",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "workslocal": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "clean": "rm -rf dist",
+    "dev": "tsx src/index.ts",
+    "lint": "eslint src/",
+    "start": "node dist/index.js",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "ora": "^9.3.0",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.x",
+    "@workslocal/client": "workspace:*",
+    "@workslocal/shared": "workspace:*"
   },
   "engines": {
     "node": ">=20.0.0"

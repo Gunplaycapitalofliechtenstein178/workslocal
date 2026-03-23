@@ -2,7 +2,7 @@ import { authenticateRequest } from '../auth.js';
 import { createDb } from '../db/index.js';
 import { getUserTunnels } from '../db/queries.js';
 import type { Env } from '../types.js';
-import { success, error } from '../utils/response.js';
+import { error, success } from '../utils/response.js';
 
 export async function handleListTunnels(request: Request, env: Env): Promise<Response> {
   const auth = await authenticateRequest(request, env);

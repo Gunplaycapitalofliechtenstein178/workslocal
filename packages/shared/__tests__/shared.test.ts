@@ -1,19 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
-  validateSubdomain,
-  generateRandomSubdomain,
-  formatPublicUrl,
-  parseHostHeader,
-  isValidTunnelDomain,
-  createTunnelSchema,
-  subdomainSchema,
   apiKeySchema,
-  ErrorCode,
   AppError,
-  TUNNEL_DOMAINS,
+  createTunnelSchema,
   DEFAULT_TUNNEL_DOMAIN,
+  ErrorCode,
+  formatPublicUrl,
+  generateRandomSubdomain,
+  isValidTunnelDomain,
+  parseHostHeader,
   RESERVED_SUBDOMAINS,
+  subdomainSchema,
+  TUNNEL_DOMAINS,
+  validateSubdomain,
 } from '../src/index.js';
 
 describe('@workslocal/shared', () => {

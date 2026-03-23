@@ -4,7 +4,7 @@ import { createDb } from './db/index.js';
 import { cleanupStaleTunnels } from './db/queries.js';
 import { createRouter } from './router.js';
 import { handleGetAccount } from './routes/account.js';
-import { handleAuthLoginPage, handleAuthCallback } from './routes/auth.js';
+import { handleAuthCallback, handleAuthLoginPage } from './routes/auth.js';
 import { routeToDO, routeWebSocket } from './routes/do.js';
 import { handleHealth, handleHealthReady } from './routes/health.js';
 import { handleCreateKey, handleListKeys, handleRevokeKey } from './routes/keys.js';
