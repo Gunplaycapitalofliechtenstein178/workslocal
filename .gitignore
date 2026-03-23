@@ -17,6 +17,7 @@ out/
 /docs
 /.idea/
 test-client.mjs
+tree.txt
 
 # Wrangler local state
 .wrangler/

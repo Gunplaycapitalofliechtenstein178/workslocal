@@ -1,17 +1,15 @@
 import { API_KEY_PREFIX, MAX_API_KEYS_PER_USER } from '@workslocal/shared';
 
-import type { AuthResult } from '../auth.js';
+import { authenticateRequest } from '../auth.js';
 import { createDb } from '../db/index.js';
 import { createApiKey, listApiKeys, revokeApiKey, getUserApiKeyCount } from '../db/queries.js';
+import type { RouteParams } from '../router.js';
 import type { Env } from '../types.js';
 import { generateId } from '../utils/id.js';
 import { success, error } from '../utils/response.js';
 
-export async function handleCreateKey(
-  request: Request,
-  env: Env,
-  auth: AuthResult,
-): Promise<Response> {
+export async function handleCreateKey(request: Request, env: Env): Promise<Response> {
+  const auth = await authenticateRequest(request, env);
   if (!auth.userId) {
     return error('AUTH_FAILED', 'Authentication required', 401);
   }
@@ -57,7 +55,8 @@ export async function handleCreateKey(
   );
 }
 
-export async function handleListKeys(env: Env, auth: AuthResult): Promise<Response> {
+export async function handleListKeys(request: Request, env: Env): Promise<Response> {
+  const auth = await authenticateRequest(request, env);
   if (!auth.userId) {
     return error('AUTH_FAILED', 'Authentication required', 401);
   }
@@ -77,14 +76,16 @@ export async function handleListKeys(env: Env, auth: AuthResult): Promise<Respon
 }
 
 export async function handleRevokeKey(
-  keyId: string,
+  _request: Request,
   env: Env,
-  auth: AuthResult,
+  params: RouteParams,
 ): Promise<Response> {
+  const auth = await authenticateRequest(_request, env);
   if (!auth.userId) {
     return error('AUTH_FAILED', 'Authentication required', 401);
   }
 
+  const keyId = params.pathParams.id ?? '';
   const db = createDb(env.DB);
   const revoked = await revokeApiKey(db, keyId, auth.userId);
 

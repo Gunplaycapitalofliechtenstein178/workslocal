@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 
-import { CliConfig, getServerUrl, readConfig, writeConfig } from '../utils/config.js';
+import { getHttpBaseUrl } from '../lib/api.js';
+import { CliConfig, readConfig, writeConfig } from '../utils/config.js';
 
 export async function logoutCommand(): Promise<void> {
   const config = readConfig();
@@ -12,11 +13,7 @@ export async function logoutCommand(): Promise<void> {
 
   // Revoke the API key server-side
   try {
-    const serverUrl = getServerUrl();
-    const httpBase = serverUrl
-      .replace('wss://', 'https://')
-      .replace('ws://', 'http://')
-      .replace(/\/ws$/, '');
+    const httpBase = getHttpBaseUrl();
 
     await fetch(`${httpBase}/api/v1/keys/${config.apiKeyId}`, {
       method: 'DELETE',

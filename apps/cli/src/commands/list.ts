@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 
-import { readConfig, getServerUrl } from '../utils/config.js';
+import { getHttpBaseUrl } from '../lib/api.js';
+import { readConfig } from '../utils/config.js';
 
 export async function listCommand(): Promise<void> {
   const config = readConfig();
@@ -10,11 +11,7 @@ export async function listCommand(): Promise<void> {
     return;
   }
 
-  const serverUrl = getServerUrl();
-  const httpBase = serverUrl
-    .replace('wss://', 'https://')
-    .replace('ws://', 'http://')
-    .replace(/\/ws$/, '');
+  const httpBase = getHttpBaseUrl();
 
   const res = await fetch(`${httpBase}/api/v1/tunnels`, {
     headers: { Authorization: `Bearer ${config.sessionToken}` },

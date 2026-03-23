@@ -1,18 +1,18 @@
 import {
-  HEARTBEAT_INTERVAL_MS,
   silentLogger,
   type WLLogger,
   type HttpRequestMessage,
-  type ServerMessage,
   type ClientMessage,
 } from '@workslocal/shared';
 import WebSocket from 'ws';
 
 import { getAnonymousToken } from './auth.js';
+import type { ClientContext } from './client-context.js';
+import { startHeartbeat, stopHeartbeat } from './connection/heartbeat.js';
+import { handleMessage } from './handlers/message-handler.js';
 import { createLocalProxy, type LocalProxy, type LocalProxyResponse } from './local-proxy.js';
 import { createRequestStore, type RequestStore } from './request-store.js';
 import type {
-  CapturedRequest,
   ConnectionState,
   TunnelClientEvents,
   TunnelClientOptions,
@@ -53,16 +53,16 @@ const DEFAULT_MAX_RECONNECT_ATTEMPTS = 10;
  * });
  * ```
  */
-export class TunnelClient {
+export class TunnelClient implements ClientContext {
   private ws: WebSocket | null = null;
   private state: ConnectionState = 'disconnected';
-  private readonly log: WLLogger;
+  readonly log: WLLogger;
   private readonly serverUrl: string;
   private readonly clientVersion: string;
   private readonly autoReconnect: boolean;
   private readonly maxReconnectAttempts: number;
   private readonly authToken: string | undefined;
-  private readonly proxyOverride:
+  readonly proxyOverride:
     | ((msg: HttpRequestMessage) => LocalProxyResponse | Promise<LocalProxyResponse>)
     | undefined;
   private reconnectAttempt = 0;
@@ -71,15 +71,15 @@ export class TunnelClient {
   private autoReconnectEnabled = true;
 
   // Tunnel state
-  private readonly tunnels = new Map<string, TunnelInfo>();
-  private readonly portMap = new Map<string, number>();
-  private pendingPort: number | null = null;
+  readonly tunnels = new Map<string, TunnelInfo>();
+  readonly portMap = new Map<string, number>();
+  pendingPort: number | null = null;
 
   // Components
-  private readonly localProxy: LocalProxy;
+  readonly localProxy: LocalProxy;
   readonly requestStore: RequestStore;
 
-  private readonly localWebSockets = new Map<string, WebSocket>();
+  readonly localWebSockets = new Map<string, WebSocket>();
 
   // Event system
   private readonly listeners: EventMap = {
@@ -110,9 +110,6 @@ export class TunnelClient {
 
   // ─── Public: Auth status ───────────────────────────────
 
-  /**
-   * Whether this client has an auth token (logged in).
-   */
   get isAuthenticated(): boolean {
     return Boolean(this.authToken);
   }
@@ -127,7 +124,7 @@ export class TunnelClient {
     (this.listeners[event] as Set<TunnelClientEvents[K]>).delete(handler);
   }
 
-  private emit<K extends keyof TunnelClientEvents>(
+  emit<K extends keyof TunnelClientEvents>(
     event: K,
     ...args: Parameters<TunnelClientEvents[K]>
   ): void {
@@ -145,10 +142,6 @@ export class TunnelClient {
 
   // ─── Connection ────────────────────────────────────────
 
-  /**
-   * Connect to the relay server.
-   * Returns a Promise that resolves when the WebSocket is open.
-   */
   async connect(): Promise<void> {
     if (this.state === 'connected' || this.state === 'connecting') {
       return;
@@ -164,7 +157,11 @@ export class TunnelClient {
       this.ws.on('open', () => {
         this.state = 'connected';
         this.reconnectAttempt = 0;
-        this.startHeartbeat();
+        this.stopHeartbeat();
+        this.heartbeatTimer = startHeartbeat(
+          (msg) => this.send(msg),
+          () => this.ws,
+        );
         this.log.info('Connected to relay server');
         this.emit('connected');
         resolve();
@@ -181,7 +178,7 @@ export class TunnelClient {
         } else {
           raw = Buffer.from(data).toString('utf-8');
         }
-        void this.handleMessage(raw);
+        void handleMessage(this, raw);
       });
 
       this.ws.on('close', (code: number, reason: Buffer) => {
@@ -211,10 +208,6 @@ export class TunnelClient {
     });
   }
 
-  /**
-   * Disconnect from the relay server.
-   * Closes all tunnels and stops heartbeat.
-   */
   disconnect(): void {
     this.autoReconnectEnabled = false;
 
@@ -245,13 +238,6 @@ export class TunnelClient {
 
   // ─── Tunnel management ─────────────────────────────────
 
-  /**
-   * Create a new tunnel.
-   * Returns a Promise that resolves with the tunnel info.
-   *
-   * If authToken is set, sends it in create_tunnel for persistent subdomain.
-   * Always sends anonymous_token as fallback for subdomain reclaim.
-   */
   async createTunnel(options: {
     port: number;
     name?: string | undefined;
@@ -285,7 +271,6 @@ export class TunnelClient {
       this.on('tunnel:created', handler);
       this.on('error', errorHandler);
 
-      // Build create_tunnel message (snake_case wire format)
       const msg: Record<string, unknown> = {
         type: 'create_tunnel',
         local_port: options.port,
@@ -295,7 +280,6 @@ export class TunnelClient {
         anonymous_token: getAnonymousToken(),
       };
 
-      // include auth token if logged in
       if (this.authToken) {
         msg.auth_token = this.authToken;
       }
@@ -305,9 +289,6 @@ export class TunnelClient {
     });
   }
 
-  /**
-   * Close a tunnel by ID.
-   */
   closeTunnel(tunnelId: string): void {
     if (!this.tunnels.has(tunnelId)) {
       this.log.warn('Tunnel not found', { tunnelId });
@@ -316,282 +297,46 @@ export class TunnelClient {
     this.send({ type: 'close_tunnel', tunnel_id: tunnelId });
   }
 
-  /**
-   * Close all tunnels.
-   */
   closeAll(): void {
     for (const tunnelId of this.tunnels.keys()) {
       this.closeTunnel(tunnelId);
     }
   }
 
-  /**
-   * Get info about a specific tunnel.
-   */
   getTunnel(tunnelId: string): TunnelInfo | undefined {
     return this.tunnels.get(tunnelId);
   }
 
-  /**
-   * Get all active tunnels.
-   */
   getAllTunnels(): readonly TunnelInfo[] {
     return [...this.tunnels.values()];
   }
 
-  /**
-   * Get current connection state.
-   */
   getState(): ConnectionState {
     return this.state;
   }
 
-  /**
-   * Get count of active tunnels.
-   */
   get tunnelCount(): number {
     return this.tunnels.size;
   }
 
-  // ─── Message handling ──────────────────────────────────
+  // ─── Send ──────────────────────────────────────────────
 
-  private async handleMessage(raw: string): Promise<void> {
-    let msg: ServerMessage;
-    try {
-      msg = JSON.parse(raw) as ServerMessage;
-    } catch {
-      this.log.warn('Invalid JSON from server', { raw: raw.slice(0, 100) });
-      return;
-    }
-
-    switch (msg.type) {
-      case 'tunnel_created':
-        this.handleTunnelCreated(msg);
-        break;
-
-      case 'tunnel_closed':
-        this.handleTunnelClosed(msg);
-        break;
-
-      case 'http_request':
-        await this.handleHttpRequest(msg);
-        break;
-
-      case 'pong':
-        // Heartbeat acknowledged
-        break;
-
-      case 'error':
-        this.handleError(msg);
-        break;
-
-      case 'domains_updated':
-        this.log.info('Domains updated', { domains: msg.domains });
-        break;
-      case 'ws_open':
-        this.handleWsOpen(
-          msg as unknown as {
-            type: 'ws_open';
-            request_id: string;
-            path: string;
-            headers: Record<string, string>;
-            query: Record<string, string>;
-            protocol: string;
-          },
-        );
-        break;
-
-      case 'ws_frame':
-        this.handleWsFrameFromServer(
-          msg as unknown as {
-            type: 'ws_frame';
-            request_id: string;
-            data: string;
-            is_binary: boolean;
-          },
-        );
-        break;
-
-      case 'ws_close':
-        this.handleWsCloseFromServer(
-          msg as unknown as {
-            type: 'ws_close';
-            request_id: string;
-            code: number;
-            reason: string;
-          },
-        );
-        break;
-      default:
-        this.log.warn('Unknown message type from server', {
-          type: (msg as { type: string }).type,
-        });
-    }
-  }
-
-  private handleTunnelCreated(msg: {
-    tunnel_id: string;
-    public_url: string;
-    subdomain: string;
-    domain: string;
-    expires_at: string;
-    is_persistent?: boolean;
-    user_id?: string | null;
-  }): void {
-    const tunnel: TunnelInfo = {
-      tunnelId: msg.tunnel_id,
-      publicUrl: msg.public_url,
-      subdomain: msg.subdomain,
-      domain: msg.domain,
-      localPort: this.pendingPort ?? 0,
-      expiresAt: msg.expires_at || null,
-      isPersistent: msg.is_persistent ?? false,
-      userId: msg.user_id ?? null,
-      createdAt: new Date(),
-    };
-
-    this.tunnels.set(tunnel.tunnelId, tunnel);
-    this.portMap.set(tunnel.tunnelId, tunnel.localPort);
-    this.pendingPort = null;
-
-    this.log.info('Tunnel created', {
-      tunnelId: tunnel.tunnelId,
-      publicUrl: tunnel.publicUrl,
-      isPersistent: String(tunnel.isPersistent),
-    });
-
-    this.emit('tunnel:created', tunnel);
-  }
-
-  private handleTunnelClosed(msg: { tunnel_id: string; reason: string }): void {
-    const tunnel = this.tunnels.get(msg.tunnel_id);
-    this.tunnels.delete(msg.tunnel_id);
-    this.portMap.delete(msg.tunnel_id);
-
-    this.log.info('Tunnel closed', {
-      tunnelId: msg.tunnel_id,
-      reason: msg.reason,
-      subdomain: tunnel?.subdomain ?? 'unknown',
-    });
-
-    this.emit('tunnel:closed', msg.tunnel_id, msg.reason);
-  }
-
-  /**
-   * Handle incoming HTTP request from the relay.
-   *
-   * Two modes:
-   * - Default: forwards to localhost via LocalProxy
-   * - Catch mode: uses proxyOverride to return static response
-   */
-  private async handleHttpRequest(msg: HttpRequestMessage): Promise<void> {
-    const startTime = Date.now();
-
-    // Find which local port this tunnel maps to.
-    // http_request doesn't include tunnel_id - use first tunnel on this connection.
-    let localPort = 0;
-    let tunnelId = '';
-    for (const [id, port] of this.portMap.entries()) {
-      localPort = port;
-      tunnelId = id;
-      break;
-    }
-
-    if (localPort === 0 && !this.proxyOverride) {
-      this.log.warn('No tunnel found for incoming request', {
-        requestId: msg.request_id,
+  send(msg: ClientMessage): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(msg));
+    } else {
+      this.log.warn('Cannot send - WebSocket not open', {
+        type: msg.type,
+        state: String(this.ws?.readyState ?? 'null'),
       });
-      this.send({
-        type: 'http_response',
-        request_id: msg.request_id,
-        status_code: 502,
-        headers: { 'content-type': 'text/plain' },
-        body: Buffer.from('No active tunnel').toString('base64'),
-      });
-      return;
     }
-
-    this.emit('request:start', msg.request_id, msg.method, msg.path);
-
-    try {
-      // Use proxyOverride (catch mode) or LocalProxy (http mode)
-      let response: LocalProxyResponse;
-      if (this.proxyOverride) {
-        response = await this.proxyOverride(msg);
-      } else {
-        response = await this.localProxy.forward(msg, localPort);
-      }
-
-      const durationMs = Date.now() - startTime;
-
-      this.send({
-        type: 'http_response',
-        request_id: msg.request_id,
-        status_code: response.statusCode,
-        headers: response.headers,
-        body: response.body,
-      });
-
-      const captured: CapturedRequest = {
-        requestId: msg.request_id,
-        tunnelId,
-        method: msg.method,
-        path: msg.path,
-        query: msg.query,
-        requestHeaders: msg.headers,
-        requestBody: msg.body,
-        responseStatusCode: response.statusCode,
-        responseHeaders: response.headers,
-        responseBody: response.body,
-        responseTimeMs: durationMs,
-        timestamp: new Date(),
-      };
-
-      this.requestStore.add(captured);
-      this.emit('request:complete', captured);
-    } catch (err) {
-      const errMessage = err instanceof Error ? err.message : String(err);
-      this.log.error('Failed to forward request', {
-        requestId: msg.request_id,
-        err: errMessage,
-      });
-
-      this.send({
-        type: 'http_response',
-        request_id: msg.request_id,
-        status_code: 502,
-        headers: { 'content-type': 'text/plain' },
-        body: Buffer.from(`Proxy error: ${errMessage}`).toString('base64'),
-      });
-
-      this.emit('request:error', msg.request_id, errMessage);
-    }
-  }
-
-  private handleError(msg: { code: string; message: string }): void {
-    this.log.warn('Server error', { code: msg.code, message: msg.message });
-    this.emit('error', new Error(`[${msg.code}] ${msg.message}`));
   }
 
   // ─── Heartbeat ─────────────────────────────────────────
 
-  private startHeartbeat(): void {
-    this.stopHeartbeat();
-
-    this.heartbeatTimer = setInterval(() => {
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.send({ type: 'ping', timestamp: Date.now() });
-      }
-    }, HEARTBEAT_INTERVAL_MS);
-
-    this.heartbeatTimer.unref();
-  }
-
   private stopHeartbeat(): void {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-    }
+    stopHeartbeat(this.heartbeatTimer);
+    this.heartbeatTimer = null;
   }
 
   // ─── Reconnect ─────────────────────────────────────────
@@ -660,169 +405,5 @@ export class TunnelClient {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-  }
-
-  // ─── Send ──────────────────────────────────────────────
-
-  /**
-   * Send a message to the relay server.
-   * All outgoing messages go through here.
-   */
-  private send(msg: ClientMessage): void {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(msg));
-    } else {
-      this.log.warn('Cannot send - WebSocket not open', {
-        type: msg.type,
-        state: String(this.ws?.readyState ?? 'null'),
-      });
-    }
-  }
-
-  /**
-   * Server tells us a browser opened a WebSocket to the tunnel URL.
-   * Open a matching WebSocket to localhost.
-   */
-  private handleWsOpen(msg: {
-    request_id: string;
-    path: string;
-    headers: Record<string, string>;
-    query: Record<string, string>;
-    protocol: string;
-  }): void {
-    // Find the local port
-    let localPort = 0;
-    for (const [, port] of this.portMap.entries()) {
-      localPort = port;
-      break;
-    }
-
-    if (localPort === 0) {
-      this.log.warn('No tunnel for WS connection', { requestId: msg.request_id });
-      this.send({
-        type: 'ws_close',
-        request_id: msg.request_id,
-        code: 1011,
-        reason: 'No active tunnel',
-      } as unknown as ClientMessage);
-      return;
-    }
-
-    // Build local WebSocket URL
-    const queryString = Object.entries(msg.query)
-      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-      .join('&');
-    const wsUrl = queryString
-      ? `ws://localhost:${String(localPort)}${msg.path}?${queryString}`
-      : `ws://localhost:${String(localPort)}${msg.path}`;
-
-    const wsOptions: WebSocket.ClientOptions = {
-      headers: { ...msg.headers },
-    };
-
-    if (msg.protocol) {
-      wsOptions.protocol = msg.protocol;
-    }
-
-    this.log.info('Opening local WebSocket', {
-      requestId: msg.request_id,
-      url: wsUrl,
-    });
-
-    const localWs = new WebSocket(wsUrl, wsOptions);
-    this.localWebSockets.set(msg.request_id, localWs);
-
-    localWs.on('open', () => {
-      this.log.debug('Local WebSocket connected', { requestId: msg.request_id });
-    });
-
-    localWs.on('message', (data: WebSocket.Data, isBinary: boolean) => {
-      // Forward frame from localhost back to the relay → browser
-      let base64Data: string;
-
-      if (typeof data === 'string') {
-        base64Data = Buffer.from(data, 'utf-8').toString('base64');
-      } else if (Buffer.isBuffer(data)) {
-        base64Data = data.toString('base64');
-      } else if (Array.isArray(data)) {
-        base64Data = Buffer.concat(data).toString('base64');
-      } else {
-        base64Data = Buffer.from(data).toString('base64');
-      }
-
-      this.send({
-        type: 'ws_frame',
-        request_id: msg.request_id,
-        data: base64Data,
-        is_binary: isBinary,
-      } as unknown as ClientMessage);
-    });
-
-    localWs.on('close', (code: number, reason: Buffer) => {
-      this.localWebSockets.delete(msg.request_id);
-      this.log.debug('Local WebSocket closed', {
-        requestId: msg.request_id,
-        code: String(code),
-      });
-
-      this.send({
-        type: 'ws_close',
-        request_id: msg.request_id,
-        code,
-        reason: reason.toString('utf-8') || 'Local server closed connection',
-      } as unknown as ClientMessage);
-    });
-
-    localWs.on('error', (err: Error) => {
-      this.localWebSockets.delete(msg.request_id);
-      this.log.warn('Local WebSocket error', {
-        requestId: msg.request_id,
-        err: err.message,
-      });
-
-      this.send({
-        type: 'ws_close',
-        request_id: msg.request_id,
-        code: 1011,
-        reason: `Local WebSocket error: ${err.message}`,
-      } as unknown as ClientMessage);
-    });
-  }
-
-  /**
-   * Server sends a WS frame from the browser.
-   * Forward it to the local WebSocket.
-   */
-  private handleWsFrameFromServer(msg: {
-    request_id: string;
-    data: string;
-    is_binary: boolean;
-  }): void {
-    const localWs = this.localWebSockets.get(msg.request_id);
-    if (!localWs || localWs.readyState !== WebSocket.OPEN) return;
-
-    const decoded = Buffer.from(msg.data, 'base64');
-
-    if (msg.is_binary) {
-      localWs.send(decoded);
-    } else {
-      localWs.send(decoded.toString('utf-8'));
-    }
-  }
-
-  /**
-   * Server tells us the browser closed the WS.
-   * Close the corresponding local WebSocket.
-   */
-  private handleWsCloseFromServer(msg: { request_id: string; code: number; reason: string }): void {
-    const localWs = this.localWebSockets.get(msg.request_id);
-    if (!localWs) return;
-
-    try {
-      localWs.close(msg.code, msg.reason);
-    } catch {
-      // Already closed
-    }
-    this.localWebSockets.delete(msg.request_id);
   }
 }

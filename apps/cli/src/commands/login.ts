@@ -5,7 +5,8 @@ import http from 'node:http';
 import chalk from 'chalk';
 import ora from 'ora';
 
-import { readConfig, writeConfig, getServerUrl } from '../utils/config.js';
+import { getHttpBaseUrl } from '../lib/api.js';
+import { readConfig, writeConfig } from '../utils/config.js';
 
 // ─── Auth result from browser callback ───────────────────
 
@@ -39,11 +40,7 @@ export async function loginCommand(): Promise<void> {
     spinner.text = 'Generating API key...';
 
     // Use the short-lived JWT to create a long-lived API key
-    const serverUrl = getServerUrl();
-    const httpBase = serverUrl
-      .replace('wss://', 'https://')
-      .replace('ws://', 'http://')
-      .replace(/\/ws$/, '');
+    const httpBase = getHttpBaseUrl();
 
     const res = await fetch(`${httpBase}/api/v1/keys`, {
       method: 'POST',
@@ -142,12 +139,7 @@ function startAuthFlow(): Promise<AuthCallbackResult> {
       res.end('Not found');
     });
     server.listen(port, () => {
-      const serverUrl = getServerUrl();
-      // Convert wss://api.workslocal.dev/ws → https://api.workslocal.dev
-      const httpBase = serverUrl
-        .replace('wss://', 'https://')
-        .replace('ws://', 'http://')
-        .replace(/\/ws$/, '');
+      const httpBase = getHttpBaseUrl();
 
       const callbackUrl = encodeURIComponent(`http://localhost:${String(port)}/callback`);
       const loginUrl = `${httpBase}/auth/login?callback=${callbackUrl}&state=${state}`;
