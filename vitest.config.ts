@@ -5,9 +5,10 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['**/__tests__/**/*.test.ts'],
+    exclude: ['**/node_modules/**', '**/__tests__/integration/**'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'lcov'],
+      reporter: ['text', 'lcov', 'json-summary'],
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.d.ts', 'src/**/index.ts'],
     },

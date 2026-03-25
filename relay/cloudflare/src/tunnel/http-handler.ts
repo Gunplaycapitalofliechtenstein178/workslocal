@@ -1,9 +1,12 @@
 import { MAX_PAYLOAD_BYTES } from '@workslocal/shared';
 
+import { uint8ArrayToBase64, base64ToUint8Array } from '../utils/encoding.js';
+
 import type { TunnelContext, WireHttpResponse } from './types.js';
 import { log } from './types.js';
 import { handleUserWebSocket } from './ws-passthrough.js';
 
+// ─── HTTP Request Forwarding ─────────────────────────────
 export async function handleTunnelHttp(ctx: TunnelContext, request: Request): Promise<Response> {
   // Check if this is a WebSocket upgrade from a browser/external client
   const upgradeHeader = request.headers.get('Upgrade');
@@ -50,16 +53,13 @@ export async function handleTunnelHttp(ctx: TunnelContext, request: Request): Pr
       );
     }
     if (bodyBytes.byteLength > 0) {
-      const bytes = new Uint8Array(bodyBytes);
-      let binary = '';
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]!);
-      }
-      bodyBase64 = btoa(binary);
+      bodyBase64 = uint8ArrayToBase64(new Uint8Array(bodyBytes));
     }
   }
 
   // Extract headers (skip internal/hop-by-hop)
+  // NOTE: accept-encoding is stripped so localhost always responds uncompressed.
+  // Cloudflare re-compresses at the edge for the browser — zero perf cost.
   const headers: Record<string, string> = {};
   for (const [key, value] of request.headers.entries()) {
     const lower = key.toLowerCase();
@@ -67,6 +67,7 @@ export async function handleTunnelHttp(ctx: TunnelContext, request: Request): Pr
       lower === 'host' ||
       lower === 'connection' ||
       lower === 'upgrade' ||
+      lower === 'accept-encoding' ||
       lower === 'transfer-encoding' ||
       lower.startsWith('x-tunnel-') ||
       lower.startsWith('cf-')
@@ -132,6 +133,7 @@ export async function handleTunnelHttp(ctx: TunnelContext, request: Request): Pr
   });
 }
 
+// ─── HTTP Response from Client ───────────────────────────
 export function handleHttpResponse(ctx: TunnelContext, msg: WireHttpResponse): void {
   const pending = ctx.pendingRequests.get(msg.request_id);
   if (!pending) {
@@ -145,11 +147,7 @@ export function handleHttpResponse(ctx: TunnelContext, msg: WireHttpResponse): v
   let bodyBytes: Uint8Array | null = null;
   if (msg.body) {
     try {
-      const binaryString = atob(msg.body);
-      bodyBytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bodyBytes[i] = binaryString.charCodeAt(i);
-      }
+      bodyBytes = base64ToUint8Array(msg.body);
     } catch {
       log.warn('Failed to decode base64 body', { requestId: msg.request_id });
     }
@@ -159,6 +157,12 @@ export function handleHttpResponse(ctx: TunnelContext, msg: WireHttpResponse): v
   headers.delete('transfer-encoding');
   headers.delete('connection');
   headers.delete('keep-alive');
+  // Strip content-encoding — localhost should never compress (we stripped
+  // accept-encoding on the way in), but if it does, the binary body will
+  // have been corrupted through the JSON text transport. Removing the header
+  // ensures the browser treats the body as-is rather than trying to decompress.
+  // Cloudflare will re-compress the response at the edge anyway.
+  headers.delete('content-encoding');
   headers.set('X-Tunnel-Response', 'true');
 
   pending.resolve(

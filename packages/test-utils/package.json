@@ -1,0 +1,38 @@
+{
+  "name": "@workslocal/test-utils",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared test utilities for the WorksLocal monorepo",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/083chandan/workslocal",
+    "directory": "packages/test-utils"
+  },
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "clean": "rm -rf dist",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@workslocal/shared": "workspace:*"
+  },
+  "peerDependencies": {
+    "vitest": ">=2.0.0"
+  }
+}

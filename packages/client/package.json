@@ -5,7 +5,7 @@
   "description": "WorksLocal tunnel client — WebSocket, local proxy, request capture",
   "repository": {
     "type": "git",
-    "url": "https://github.com/workslocal/workslocal",
+    "url": "https://github.com/083chandan/workslocal",
     "directory": "packages/client"
   },
   "license": "MIT",
@@ -36,6 +36,7 @@
     "ws": "^8.19.0"
   },
   "devDependencies": {
-    "@types/ws": "^8.18.1"
+    "@types/ws": "^8.18.1",
+    "@workslocal/test-utils": "workspace:*"
   }
 }

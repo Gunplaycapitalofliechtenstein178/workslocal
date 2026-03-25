@@ -7,10 +7,10 @@
   "scripts": {
     "clean": "rm -rf .wrangler dist",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply workslocal-db --local",
+    "db:migrate:local": "wrangler d1 migrations apply workslocal-db-dev --local",
     "db:migrate:remote": "wrangler d1 migrations apply workslocal-db --remote",
     "db:reset": "rm -rf .wrangler/state && pnpm run db:migrate:local && pnpm run db:seed:local",
-    "db:seed:local": "wrangler d1 execute workslocal-db --local --file=seed.sql",
+    "db:seed:local": "wrangler d1 execute workslocal-db-dev --local --file=seed.sql",
     "db:seed:remote": "wrangler d1 execute workslocal-db --remote --file=seed.sql",
     "db:studio": "drizzle-kit studio",
     "deploy": "wrangler deploy",
@@ -18,6 +18,8 @@
     "dev:scheduled": "wrangler dev --test-scheduled",
     "lint": "eslint src/",
     "tail": "wrangler tail",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "typecheck": "tsc --noEmit",
     "types": "wrangler types"
   },
@@ -27,7 +29,9 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260317.1",
+    "@types/ws": "^8.18.1",
     "drizzle-kit": "^0.31.10",
-    "wrangler": "^4.76.0"
+    "wrangler": "^4.76.0",
+    "ws": "^8.19.0"
   }
 }

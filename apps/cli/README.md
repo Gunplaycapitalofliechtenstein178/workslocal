@@ -1,15 +1,15 @@
 <p align="center">
-  <img src="apps/inspector/public/logo-dark.svg" width="80" />
+  <img src="apps/inspector/public/logo.svg" width="80" />
 </p>
 
-<h1 align="center">WorksLocal</h1>
+<h1 align="center" style="color: #22d3ee">WorksLocal</h1>
 <p align="center">
   <em>Free, open-source localhost tunneling. It works on my local.</em>
 </p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/workslocal"><img src="https://img.shields.io/npm/v/workslocal" /></a>
-  <a href="https://github.com/workslocal/workslocal/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" /></a>
+  <a href="https://github.com/083chandan/workslocal/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" /></a>
 </p>
 
 ## Quick Start
